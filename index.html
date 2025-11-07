@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civil Society Under Pressure: Foreign Agents Laws Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+  <div class="max-w-4xl mx-auto">
+    <main id="game-container" class="bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
+      <!-- Header -->
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Civil Society Under Pressure</h1>
+        <p class="text-slate-400">Navigating Georgia's Foreign Agents Laws</p>
+        <div id="turn-display" class="mt-4 inline-block px-3 py-1 bg-slate-700 rounded-full text-slate-300 text-sm" aria-live="polite" aria-atomic="true">
+          Month 1 / 10
+        </div>
+      </header>
+
+      <!-- Resources Section -->
+      <section aria-labelledby="resources-heading" class="mb-8">
+        <h2 id="resources-heading" class="sr-only">Game Resources</h2>
+        <div class="grid grid-cols-3 gap-4">
+          <!-- Funds Resource -->
+          <div class="bg-slate-900 rounded-lg p-4">
+            <div class="text-slate-400 text-sm mb-1" id="funds-label">Funds</div>
+            <div id="funds-value" class="text-3xl font-bold text-green-600" aria-labelledby="funds-label" role="status">100</div>
+            <div class="w-full bg-slate-700 rounded-full h-2 mt-2" aria-hidden="true">
+              <div id="funds-bar" class="bg-green-500 h-2 rounded-full" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Reputation Resource -->
+          <div class="bg-slate-900 rounded-lg p-4">
+            <div class="text-slate-400 text-sm mb-1" id="reputation-label">Reputation</div>
+            <div id="reputation-value" class="text-3xl font-bold text-green-600" aria-labelledby="reputation-label" role="status">100</div>
+            <div class="w-full bg-slate-700 rounded-full h-2 mt-2" aria-hidden="true">
+              <div id="reputation-bar" class="bg-green-500 h-2 rounded-full" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Impact Resource -->
+          <div class="bg-slate-900 rounded-lg p-4">
+            <div class="text-slate-400 text-sm mb-1" id="impact-label">Impact</div>
+            <div id="impact-value" class="text-3xl font-bold text-green-600" aria-labelledby="impact-label" role="status">100</div>
+            <div class="w-full bg-slate-700 rounded-full h-2 mt-2" aria-hidden="true">
+              <div id="impact-bar" class="bg-green-500 h-2 rounded-full" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Event/Feedback/Game Over Container -->
+      <section id="content-area" aria-live="polite" aria-atomic="true"></section>
+
+      <!-- Info box -->
+      <aside class="bg-slate-900/50 border border-slate-700 rounded-lg p-4 mt-8">
+        <p class="text-slate-400 text-sm">
+          <strong class="text-slate-300">Research-based simulation:</strong> All scenarios derive from the Venice Commission's October 2025 legal opinion (CDL-AD(2025)034) analyzing Georgia's foreign agents legislation. Each event cites specific legal provisions and their documented impacts on civil society.
+        </p>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Skip to main content link (hidden but accessible) -->
+  <a href="#game-container" class="sr-only focus:not-sr-only">Skip to main content</a>
+
+  <style>
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    
+    .focus\:not-sr-only:focus {
+      position: static;
+      width: auto;
+      height: auto;
+      padding: inherit;
+      margin: inherit;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+    }
+  </style>
+
+  <script>
+    // State variables
+    let funds = 100;
+    let reputation = 100;
+    let impact = 100;
+    let turn = 1;
+    let currentEvent = null;
+    let feedback = '';
+    let gameOver = false;
+    let showFeedback = false;
+
+    const events = [
+        {
+          id: 1,
+          title: "The 10-Day Deadline",
+          text: "You receive notification that your organization may qualify as an 'agent of a foreign principal' under GEOFARA. You have 10 days to register or face criminal charges of up to 5 years imprisonment.",
+          citation: "Venice Commission Opinion, para 49, 56",
+          choices: [
+            {
+              text: "Register immediately",
+              funds: -15,
+              reputation: -25,
+              impact: -10,
+              feedback: "You're now labeled 'agent of a foreign principal' in a public database. Donors hesitate. Community trust drops. But you avoided criminal prosecution."
+            },
+            {
+              text: "Challenge the classification",
+              funds: -20,
+              reputation: 10,
+              impact: 5,
+              feedback: "Legal challenge buys time and wins public support. But legal fees mount and the 10-day clock keeps ticking."
+            }
+          ]
+        },
+        {
+          id: 2,
+          title: "Employee List Disclosure",
+          text: "The Anti-Corruption Bureau demands a complete list of all employees for public disclosure, as required by GEOFARA Article 2(1)(c). Staff fear harassment and targeting.",
+          citation: "Venice Commission Opinion, para 71",
+          choices: [
+            {
+              text: "Comply with disclosure",
+              funds: 0,
+              reputation: -15,
+              impact: -20,
+              feedback: "Employee names now public. Three staff members resign fearing harassment. Your senior investigator receives threatening messages."
+            },
+            {
+              text: "Refuse and face penalties",
+              funds: -25,
+              reputation: 15,
+              impact: 10,
+              feedback: "Fine of 5,000 GEL imposed. But staff morale rises—you stood up for their safety. International solidarity grows."
+            }
+          ]
+        },
+        {
+          id: 3,
+          title: "The Grants Approval Chokepoint",
+          text: "EU approves a €50,000 grant for your anti-corruption monitoring. But Georgia's amended Law on Grants requires government approval first. The application sits on someone's desk.",
+          citation: "Venice Commission Opinion, para 84-93",
+          choices: [
+            {
+              text: "Wait for approval",
+              funds: -20,
+              reputation: 0,
+              impact: -25,
+              feedback: "Three months pass. No response. Programs pause. Staff go unpaid. 400 planned beneficiaries receive no services."
+            },
+            {
+              text: "Accept grant without approval",
+              funds: 35,
+              reputation: -20,
+              impact: 20,
+              feedback: "Programs continue! But you face administrative fine equal to twice the grant amount (€100,000). Bank accounts at risk of seizure."
+            }
+          ]
+        },
+        {
+          id: 4,
+          title: "Asset Seizure Without Warning",
+          text: "The Bureau orders immediate seizure of your bank accounts over alleged grant violations. Under Article 6² of the Grants Law, seizure happens before court confirmation.",
+          citation: "Venice Commission Opinion, para 87, 97",
+          choices: [
+            {
+              text: "Fight seizure in court",
+              funds: -30,
+              reputation: 20,
+              impact: -15,
+              feedback: "Court must decide within 48 hours, but accounts stay frozen. Payroll missed. Rent unpaid. Programs halt. Victory takes 3 weeks."
+            },
+            {
+              text: "Accept and negotiate",
+              funds: 0,
+              reputation: -25,
+              impact: -30,
+              feedback: "You sign agreement to cease 'problematic activities.' Accounts unfrozen but heavily restricted. Self-censorship begins."
+            }
+          ]
+        },
+        {
+          id: 5,
+          title: "Deficient Registration Trap",
+          text: "Bureau finds your GEOFARA registration 'deficient.' Under Article 8(6), after 10 days it becomes automatically unlawful to continue operating, even if you submit corrections.",
+          citation: "Venice Commission Opinion, para 54, 76",
+          choices: [
+            {
+              text: "Cease all operations",
+              funds: 0,
+              reputation: -30,
+              impact: -40,
+              feedback: "Programs halt. 600 people lose access to legal aid. Public sees you as compliant. Staff demoralized: 'We gave up.'"
+            },
+            {
+              text: "Continue working while correcting",
+              funds: -15,
+              reputation: 20,
+              impact: 15,
+              feedback: "You file corrections but keep helping people. Technically criminal. Solidarity grows. Risk of prosecution looms."
+            }
+          ]
+        },
+        {
+          id: 6,
+          title: "Double Registration Burden",
+          text: "You're already registered under the TFI Law. Now GEOFARA requires separate registration with overlapping requirements. Both laws operate simultaneously.",
+          citation: "Venice Commission Opinion, para 16, 32, 109",
+          choices: [
+            {
+              text: "Register under both",
+              funds: -25,
+              reputation: -15,
+              impact: -15,
+              feedback: "Administrative burden doubles. Two sets of six-monthly reports. Two databases. Two stigmatizing labels. Staff spend half their time on compliance."
+            },
+            {
+              text: "Register only under TFI",
+              funds: -10,
+              reputation: -20,
+              impact: 0,
+              feedback: "Bureau initiates criminal proceedings for GEOFARA non-compliance. You argue TFI should suffice. Legal battle begins."
+            }
+          ]
+        },
+        {
+          id: 7,
+          title: "The Open-Ended Demand",
+          text: "Bureau requests 'such further information as necessary' under GEOFARA Article 2(1)(j). No specifics given. Refusal is criminal offense.",
+          citation: "Venice Commission Opinion, para 49, 62",
+          choices: [
+            {
+              text: "Provide everything you have",
+              funds: -10,
+              reputation: -10,
+              impact: -20,
+              feedback: "You hand over internal communications, donor correspondence, strategy documents. Bureau now has everything. Self-censorship inevitable."
+            },
+            {
+              text: "Ask for clarification",
+              funds: -15,
+              reputation: 5,
+              impact: 5,
+              feedback: "Bureau treats clarification request as refusal. Fine issued. You're labeled 'uncooperative.' But you protected sensitive information."
+            }
+          ]
+        },
+        {
+          id: 8,
+          title: "48-Hour Labeling Requirement",
+          text: "You publish a report on judicial independence. GEOFARA Article 4 requires all materials be labeled 'distributed by agent of foreign principal' within 48 hours and filed with Bureau.",
+          citation: "Venice Commission Opinion, para 50, 70",
+          choices: [
+            {
+              text: "Label and file the report",
+              funds: 0,
+              reputation: -20,
+              impact: -15,
+              feedback: "Report circulates with stigmatizing label. Media dismisses it as 'foreign propaganda.' Judges you intended to help distance themselves."
+            },
+            {
+              text: "Publish without label",
+              funds: -20,
+              reputation: 10,
+              impact: 20,
+              feedback: "Report has impact—judges cite it! But you face 5,000 GEL fine for non-labeling under Article 8. Worth it?"
+            }
+          ]
+        },
+        {
+          id: 9,
+          title: "Broadcasting Blackout",
+          text: "A broadcaster you've partnered with for public awareness campaigns can no longer accept any foreign funding under amended Broadcasting Law. Your joint program is at risk.",
+          citation: "Venice Commission Opinion, para 101-105",
+          choices: [
+            {
+              text: "Fund it with your budget",
+              funds: -30,
+              reputation: 10,
+              impact: 15,
+              feedback: "TV spots continue reaching 100,000+ viewers. But your other programs suffer from diverted funds. Stretching too thin."
+            },
+            {
+              text: "Cancel the partnership",
+              funds: 0,
+              reputation: -10,
+              impact: -20,
+              feedback: "Campaign ends. Public awareness drops. Independent broadcaster loses vital content. Your voice on TV goes silent."
+            }
+          ]
+        },
+        {
+          id: 10,
+          title: "The Vague 'Political Activities' Accusation",
+          text: "Bureau claims your voter education workshops constitute 'political activities' under GEOFARA's broad definition—'any activity intended to influence government policy or public opinion.'",
+          citation: "Venice Commission Opinion, para 46, 61",
+          choices: [
+            {
+              text: "Cancel all workshops",
+              funds: 0,
+              reputation: -15,
+              impact: -30,
+              feedback: "2,000 voters lose access to election information. Bureau approves. Democracy suffers. Safe but compromised."
+            },
+            {
+              text: "Continue with workshops",
+              funds: -20,
+              reputation: 15,
+              impact: 25,
+              feedback: "Workshops reach rural communities. First-time voters educated. But Bureau initiates criminal case: 'political activities without proper registration.'"
+            }
+          ]
+        },
+        {
+          id: 11,
+          title: "Staff Exodus",
+          text: "Your senior lawyer discovers her name will be in the public 'foreign agents' database. Her family has government connections. She's terrified of repercussions.",
+          citation: "Venice Commission Opinion, para 71",
+          choices: [
+            {
+              text: "Remove her from public lists",
+              funds: 0,
+              reputation: -10,
+              impact: -15,
+              feedback: "She stays, but Bureau flags the omission. You're forced to disclose anyway. Her name appears. She resigns. 'You couldn't protect me.'"
+            },
+            {
+              text: "Offer to fight for privacy protections",
+              funds: -25,
+              reputation: 10,
+              impact: 0,
+              feedback: "Constitutional challenge filed. She stays temporarily. Legal costs mount. Case will take years. Meanwhile, other staff worry."
+            }
+          ]
+        },
+        {
+          id: 12,
+          title: "The Cumulative Collapse",
+          text: "After months of TFI Law compliance, GEOFARA registration, rejected grant applications, and constant Bureau monitoring, your director says: 'We're spending 60% of our time on compliance, 40% on mission.'",
+          citation: "Venice Commission Opinion, para 109-111",
+          choices: [
+            {
+              text: "Scale back to manageable projects",
+              funds: -10,
+              reputation: -20,
+              impact: -35,
+              feedback: "You close three programs. Focus on two 'safe' ones. Survive but mission gutted. 1,000 fewer people helped annually."
+            },
+            {
+              text: "Rebrand as purely local organization",
+              funds: -30,
+              reputation: 20,
+              impact: -20,
+              feedback: "Cut all foreign ties. Apply to State Grant Agency. Independence questionable. Survive, but identity transformed. 'Are we still watchdogs?'"
+            }
+          ]
+        }
+      ];
+
+    function updateResources() {
+      document.getElementById('funds-value').textContent = funds;
+      document.getElementById('funds-value').className = `text-3xl font-bold ${getResourceColor(funds)}`;
+      document.getElementById('funds-bar').style.width = `${funds}%`;
+      document.getElementById('funds-bar').className = `h-2 rounded-full ${getResourceBg(funds)}`;
+
+      document.getElementById('reputation-value').textContent = reputation;
+      document.getElementById('reputation-value').className = `text-3xl font-bold ${getResourceColor(reputation)}`;
+      document.getElementById('reputation-bar').style.width = `${reputation}%`;
+      document.getElementById('reputation-bar').className = `h-2 rounded-full ${getResourceBg(reputation)}`;
+
+      document.getElementById('impact-value').textContent = impact;
+      document.getElementById('impact-value').className = `text-3xl font-bold ${getResourceColor(impact)}`;
+      document.getElementById('impact-bar').style.width = `${impact}%`;
+      document.getElementById('impact-bar').className = `h-2 rounded-full ${getResourceBg(impact)}`;
+
+      document.getElementById('turn-display').textContent = `Month ${turn} / 10`;
+
+      if (funds <= 0 || reputation <= 0 || impact <= 0 || turn > 10) {
+        endGame();
+      }
+    }
+
+    function getResourceColor(value) {
+      if (value >= 70) return 'text-green-600';
+      if (value >= 40) return 'text-yellow-600';
+      return 'text-red-600';
+    }
+
+    function getResourceBg(value) {
+      if (value >= 70) return 'bg-green-500';
+      if (value >= 40) return 'bg-yellow-500';
+      return 'bg-red-500';
+    }
+
+    function selectRandomEvent() {
+      if (Math.random() < 0.25) {
+        feedback = "⚠️ ENFORCEMENT ACTION: Unannounced Bureau inspection. Staff questioned. Documents seized. Operations disrupted.";
+        showFeedback = true;
+        funds = Math.max(0, funds - 15);
+        reputation = Math.max(0, reputation - 15);
+        impact = Math.max(0, impact - 10);
+        updateResources();
+        renderContent();
+        setTimeout(() => {
+          showFeedback = false;
+          proceedToNextEvent();
+        }, 3500);
+      } else {
+        proceedToNextEvent();
+      }
+    }
+
+    function proceedToNextEvent() {
+      currentEvent = events[Math.floor(Math.random() * events.length)];
+      feedback = '';
+      showFeedback = false;
+      renderContent();
+    }
+
+    function makeChoice(choiceIndex) {
+      const choice = currentEvent.choices[choiceIndex];
+      funds = Math.max(0, Math.min(100, funds + choice.funds));
+      reputation = Math.max(0, Math.min(100, reputation + choice.reputation));
+      impact = Math.max(0, Math.min(100, impact + choice.impact));
+      feedback = choice.feedback;
+      showFeedback = true;
+      currentEvent = null;
+      updateResources();
+      renderContent();
+
+      setTimeout(() => {
+        if (turn >= 10) {
+          endGame();
+        } else {
+          turn++;
+          showFeedback = false;
+          selectRandomEvent();
+        }
+      }, 4500);
+    }
+
+    function endGame() {
+      gameOver = true;
+      currentEvent = null;
+      renderContent();
+    }
+
+    function getEndingMessage() {
+      const total = funds + reputation + impact;
+      
+      if (funds <= 0) {
+        return {
+          title: "Financial Collapse",
+          message: "Bank accounts frozen, grants blocked, fines unpaid. Your NGO closes its doors. 1,200+ people lose access to legal aid, human rights monitoring, and civic education. Another voice silenced by the 'foreign agents' law."
+        };
+      }
+      if (reputation <= 0) {
+        return {
+          title: "Stigmatized into Irrelevance",
+          message: "Labeled 'agent of foreign principal' in public databases, dismissed as 'foreign propaganda' by state media. Even allies distance themselves. Your organization exists on paper, but no one trusts you anymore."
+        };
+      }
+      if (impact <= 0) {
+        return {
+          title: "Bureaucratic Survival",
+          message: "You've mastered compliance: reports filed, registrations current, Bureau satisfied. But you've stopped helping anyone. All energy goes to survival. The mission died quietly under paperwork."
+        };
+      }
+      if (total >= 240) {
+        return {
+          title: "Defiant Resilience",
+          message: "Against all odds, you've maintained operations, reputation, and impact. International recognition grows. Local communities defend you. You've become a symbol that civil society can survive authoritarian pressure—barely."
+        };
+      }
+      if (total >= 180) {
+        return {
+          title: "Battered but Standing",
+          message: "Ten months of compliance burdens, harassment, and restrictions. Programs scaled back, some staff gone, resources depleted. But you're still here, still fighting. Tomorrow brings another battle."
+        };
+      }
+      return {
+        title: "Hollow Survival",
+        message: "You avoided closure, but at what cost? Self-censorship has become habit. Bold programs abandoned. The organization survives, but its soul is compromised. Is this winning?"
+      };
+    }
+
+    function restart() {
+      funds = 100;
+      reputation = 100;
+      impact = 100;
+      turn = 1;
+      gameOver = false;
+      feedback = '';
+      showFeedback = false;
+      document.getElementById('game-container').style.display = 'block';
+      updateResources();
+      selectRandomEvent();
+    }
+
+    function renderContent() {
+      const contentArea = document.getElementById('content-area');
+      contentArea.innerHTML = '';
+
+      if (gameOver) {
+        const ending = getEndingMessage();
+        const gameOverContainer = document.createElement('div');
+        gameOverContainer.className = 'min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 flex items-center justify-center';
+        gameOverContainer.innerHTML = `
+          <div class="max-w-2xl w-full bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
+            <div class="text-center mb-6">
+              <h2 class="text-4xl font-bold text-white mb-2">${ending.title}</h2>
+              <div class="inline-block px-4 py-1 rounded-full bg-slate-700 text-slate-300 text-sm" aria-label="Game duration">
+                Survived ${turn - 1} months
+              </div>
+            </div>
+            
+            <p class="text-lg text-slate-300 mb-8 leading-relaxed">${ending.message}</p>
+            
+            <div class="bg-slate-900 rounded-lg p-6 mb-8">
+              <h3 class="text-xl font-semibold text-white mb-4">Final Resources</h3>
+              <div class="space-y-4">
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-slate-400">Funds</span>
+                    <span class="font-semibold ${getResourceColor(funds)}" aria-label="Final funds: ${funds}">${funds}</span>
+                  </div>
+                  <div class="w-full bg-slate-700 rounded-full h-2" aria-hidden="true">
+                    <div class="${getResourceBg(funds)} h-2 rounded-full" style="width: ${funds}%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-slate-400">Reputation</span>
+                    <span class="font-semibold ${getResourceColor(reputation)}" aria-label="Final reputation: ${reputation}">${reputation}</span>
+                  </div>
+                  <div class="w-full bg-slate-700 rounded-full h-2" aria-hidden="true">
+                    <div class="${getResourceBg(reputation)} h-2 rounded-full" style="width: ${reputation}%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-slate-400">Impact</span>
+                    <span class="font-semibold ${getResourceColor(impact)}" aria-label="Final impact: ${impact}">${impact}</span>
+                  </div>
+                  <div class="w-full bg-slate-700 rounded-full h-2" aria-hidden="true">
+                    <div class="${getResourceBg(impact)} h-2 rounded-full" style="width: ${impact}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-6">
+              <p class="text-blue-200 text-sm leading-relaxed">
+                <strong class="text-blue-100">Based on real legislation:</strong> Events reflect actual provisions from Georgia's Law on Transparency of Foreign Influence (2024), Law on Foreign Agents Registration (GEOFARA, 2025), and amendments to the Law on Grants (2025). Citations from the Venice Commission Opinion CDL-AD(2025)034.
+              </p>
+            </div>
+            
+            <button id="restart-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+              Play Again
+            </button>
+          </div>
+        `;
+        contentArea.appendChild(gameOverContainer);
+        document.getElementById('restart-btn').addEventListener('click', restart);
+        document.getElementById('game-container').style.display = 'none';
+      } else if (showFeedback) {
+        contentArea.innerHTML = `
+          <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-6 mb-6" role="status" aria-live="assertive">
+            <div class="flex items-start gap-3">
+              <svg class="text-blue-400 flex-shrink-0 mt-1" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <p class="text-blue-100 text-lg leading-relaxed">${feedback}</p>
+            </div>
+          </div>
+        `;
+      } else if (currentEvent) {
+        let choicesHtml = '';
+        currentEvent.choices.forEach((choice, idx) => {
+          choicesHtml += `
+            <button class="choice-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-slate-500 text-white p-4 rounded-lg transition-all text-left group" data-index="${idx}" aria-label="Choice ${idx + 1}: ${choice.text}">
+              <div class="font-semibold mb-2 group-hover:text-blue-400">${choice.text}</div>
+              <div class="flex gap-3 text-sm flex-wrap" aria-hidden="true">
+                ${choice.funds !== 0 ? `<span class="${choice.funds > 0 ? 'text-green-400' : 'text-red-400'}">Funds ${choice.funds > 0 ? '+' : ''}${choice.funds}</span>` : ''}
+                ${choice.reputation !== 0 ? `<span class="${choice.reputation > 0 ? 'text-green-400' : 'text-red-400'}">Rep ${choice.reputation > 0 ? '+' : ''}${choice.reputation}</span>` : ''}
+                ${choice.impact !== 0 ? `<span class="${choice.impact > 0 ? 'text-green-400' : 'text-red-400'}">Impact ${choice.impact > 0 ? '+' : ''}${choice.impact}</span>` : ''}
+              </div>
+            </button>
+          `;
+        });
+
+        contentArea.innerHTML = `
+          <article class="bg-slate-900 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-white mb-3">${currentEvent.title}</h2>
+            <p class="text-slate-300 text-lg mb-3 leading-relaxed">${currentEvent.text}</p>
+            ${currentEvent.citation ? `<p class="text-xs text-slate-500 mb-4 italic">Source: ${currentEvent.citation}</p>` : ''}
+            <fieldset class="border-0 p-0 m-0">
+              <legend class="text-slate-400 text-sm mb-4">What will you do?</legend>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${choicesHtml}
+              </div>
+            </fieldset>
+          </article>
+        `;
+
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            makeChoice(parseInt(e.target.closest('button').dataset.index));
+          });
+        });
+      } else {
+        contentArea.innerHTML = `<div class="text-center text-slate-400 py-8">Loading next event...</div>`;
+      }
+    }
+
+    window.addEventListener('load', () => {
+      if (turn <= 10 && !gameOver) {
+        selectRandomEvent();
+      }
+    });
+  </script>
+</body>
+</html>
